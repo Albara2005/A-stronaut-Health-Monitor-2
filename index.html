@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ORION-IV Expert System</title>
+<style>
+:root{--bg:#f5f6f8;--card:#fff;--fg:#1b1f24;--mut:#667085;--bd:#e1e4e8;
+--NOMINAL:#1a7f4b;--INFO:#2563eb;--WARNING:#b7791f;--HIGH:#c2410c;--CRITICAL:#c81e1e}
+@media (prefers-color-scheme:dark){:root{--bg:#0f1318;--card:#181d24;--fg:#e8ebef;--mut:#98a2b3;--bd:#2a313b;
+--NOMINAL:#3ecf8e;--INFO:#6ea8ff;--WARNING:#f0b429;--HIGH:#fb923c;--CRITICAL:#ff6b6b}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.5 system-ui,-apple-system,"Segoe UI",Tahoma,sans-serif;padding:12px;max-width:980px;margin-inline:auto}
+header,.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between}
+h1{font-size:18px;margin:0}h2{font-size:14px;margin:0 0 8px;color:var(--mut)}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:12px;margin-top:10px}
+.chip{border:1px solid var(--bd);border-radius:99px;padding:2px 10px;font-size:12px;color:var(--mut)}
+.chip.ok{color:var(--NOMINAL);border-color:var(--NOMINAL)}.chip.bad{color:var(--CRITICAL);border-color:var(--CRITICAL)}
+#banner{border-inline-start:6px solid var(--mut)}
+#status{font-size:26px;font-weight:700}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px}
+.tile{border:1px solid var(--bd);border-radius:8px;padding:8px}.tile b{display:block;font-size:20px}.tile span{color:var(--mut);font-size:12px}
+.rule{border-inline-start:4px solid var(--mut);padding:6px 10px;margin-top:8px;background:var(--bg);border-radius:6px}
+.rule small{display:block;color:var(--mut)}
+table{width:100%;border-collapse:collapse;font-size:13px}td,th{padding:4px 6px;border-bottom:1px solid var(--bd);text-align:start}
+select,button{font:inherit;padding:4px 10px;border-radius:6px;border:1px solid var(--bd);background:var(--card);color:var(--fg)}
+button{cursor:pointer}.sev{font-weight:700}
+.NOMINAL{color:var(--NOMINAL)}.INFO{color:var(--INFO)}.WARNING{color:var(--WARNING)}.HIGH{color:var(--HIGH)}.CRITICAL{color:var(--CRITICAL)}
+footer{color:var(--mut);font-size:12px;margin-top:12px}
+</style>
+</head>
+<body>
+<header>
+  <h1>ORION-IV Expert System</h1>
+  <div class="row">
+    <span id="c-api" class="chip">API</span><span id="c-mqtt" class="chip">MQTT</span>
+    <button id="lang" type="button">EN</button>
+  </div>
+</header>
+
+<section id="banner" class="card">
+  <div class="row"><div><h2 data-i="overall">Overall</h2><div id="status">…</div></div>
+  <label><span data-i="device">Device</span> <select id="dev"></select></label></div>
+  <div id="explain"></div><div id="quality" class="chip" style="margin-top:6px;display:inline-block"></div>
+</section>
+
+<section class="card"><h2 data-i="telemetry">Telemetry</h2><div id="tele" class="grid"></div></section>
+<section class="card"><h2 data-i="rules">Matched rules</h2><div id="rules"></div></section>
+<section class="card"><h2 data-i="history">Decision history</h2>
+  <table><thead><tr><th data-i="time">Time</th><th data-i="status">Status</th><th data-i="ruleids">Rules</th></tr></thead><tbody id="hist"></tbody></table></section>
+<section class="card"><h2 data-i="demo">Demo: send test telemetry (device web-demo)</h2><div class="row" id="demo" style="justify-content:flex-start"></div><div id="demomsg" class="chip" style="margin-top:6px;display:none"></div></section>
+<footer id="disc"></footer>
+
+<script>
+"use strict";
+const API = new URLSearchParams(location.search).get("api") || "";   // ?api=http://host:8000 when served elsewhere
+const I18N = {
+  ar:{overall:"الحالة العامة",device:"الجهاز",telemetry:"القراءات",rules:"القواعد المتحققة",history:"سجل القرارات",
+      time:"الوقت",status:"الحالة",ruleids:"القواعد",demo:"تجربة: إرسال قراءات اختبار (الجهاز web-demo)",
+      none:"لا توجد قواعد متحققة",nodata:"لا توجد بيانات بعد - شغّل الـ simulator أو الجهاز",offline:"الخادم غير متصل",
+      age:"عمر البيانات",stale:"قديمة",fresh:"حديثة",sec:"ث",sent:"تم الإرسال",fail:"فشل الإرسال",
+      hr:"النبض (bpm)",spo2:"SpO2 (%)",co2:"CO2 (ppm)",pr:"ضغط الكابينة (kPa)",o2:"ppO2 (kPa)",rad:"الإشعاع",scr:"Scrubber",temp:"حرارة الجلد (°C)",
+      NOMINAL:"طبيعي",INFO:"معلومة",WARNING:"تحذير",HIGH:"عالي",CRITICAL:"حرج",
+      s_nominal:"طبيعي",s_co2:"CO2 مرتفع",s_spo2:"SpO2 منخفض",s_pressure:"ضغط منخفض",s_off:"حساس متوقف"},
+  en:{overall:"Overall status",device:"Device",telemetry:"Telemetry",rules:"Matched rules",history:"Decision history",
+      time:"Time",status:"Status",ruleids:"Rules",demo:"Demo: send test telemetry (device web-demo)",
+      none:"No rules matched",nodata:"No data yet - run the simulator or a device",offline:"Backend unreachable",
+      age:"Data age",stale:"stale",fresh:"fresh",sec:"s",sent:"Sent",fail:"Send failed",
+      hr:"Heart rate (bpm)",spo2:"SpO2 (%)",co2:"CO2 (ppm)",pr:"Cabin pressure (kPa)",o2:"ppO2 (kPa)",rad:"Radiation",scr:"Scrubber",temp:"Skin temp (°C)",
+      NOMINAL:"NOMINAL",INFO:"INFO",WARNING:"WARNING",HIGH:"HIGH",CRITICAL:"CRITICAL",
+      s_nominal:"Nominal",s_co2:"High CO2",s_spo2:"Low SpO2",s_pressure:"Low pressure",s_off:"Sensor offline"}
+};
+const TILES = [["crew.heart_rate_bpm","hr"],["crew.spo2_percent","spo2"],["crew.skin_temp_c","temp"],
+  ["eclss.co2_ppm","co2"],["eclss.scrubber_status","scr"],["eclss.cabin_pressure_kpa","pr"],
+  ["eclss.ppo2_kpa","o2"],["environment.radiation_level","rad"]];
+const DEMOS = {
+  s_nominal:{},
+  s_co2:{co2_ppm:1300,scrubber_status:"INACTIVE"},
+  s_spo2:{spo2_percent:89},
+  s_pressure:{cabin_pressure_kpa:85},
+  s_off:{co2_sensor_status:"OFFLINE"}
+};
+let lang = "ar", dev = "", timer = null;
+try{ lang = localStorage.getItem("orion_lang") || "ar"; }catch(e){}
+const $ = id => document.getElementById(id);
+const t = k => (I18N[lang][k] ?? k);
+const get = (o, path) => path.split(".").reduce((a, k) => (a && typeof a === "object") ? a[k] : undefined, o);
+function el(tag, cls, text){ const e = document.createElement(tag); if(cls) e.className = cls; if(text !== undefined) e.textContent = text; return e; }
+function url(p){ return API + p; }
+
+function applyLang(){
+  document.documentElement.lang = lang; document.documentElement.dir = lang === "ar" ? "rtl" : "ltr";
+  $("lang").textContent = lang === "ar" ? "EN" : "AR";
+  document.querySelectorAll("[data-i]").forEach(n => n.textContent = t(n.dataset.i));
+  const d = $("demo"); d.replaceChildren();
+  for(const k of Object.keys(DEMOS)){ const b = el("button", "", t(k)); b.type = "button"; b.onclick = () => sendDemo(k); d.append(b); }
+}
+
+function setChip(id, label, ok){ const c = $(id); c.textContent = label; c.className = "chip " + (ok ? "ok" : "bad"); }
+
+function render(o){
+  setChip("c-api", "API ✓", true);
+  setChip("c-mqtt", o.health.mqtt_enabled ? (o.health.mqtt_connected ? "MQTT ✓" : "MQTT ✗") : "MQTT off", !o.health.mqtt_enabled || o.health.mqtt_connected);
+  const sel = $("dev"), cur = o.device_id || "";
+  if(sel.dataset.sig !== o.devices.join("|")){
+    sel.replaceChildren(...o.devices.map(d => el("option", "", d)));
+    sel.dataset.sig = o.devices.join("|");
+  }
+  sel.value = cur; dev = cur;
+
+  const d = o.decision, st = $("status");
+  $("tele").replaceChildren(); $("rules").replaceChildren();
+  if(!d){
+    st.textContent = "—"; st.className = ""; $("banner").style.borderInlineStartColor = "var(--mut)";
+    $("explain").textContent = t("nodata"); $("quality").style.display = "none";
+  } else {
+    st.textContent = t(d.overall_status); st.className = d.overall_status;
+    $("banner").style.borderInlineStartColor = `var(--${d.overall_status})`;
+    $("explain").textContent = d.explanation;
+    const q = d.data_quality, qe = $("quality"); qe.style.display = "inline-block";
+    const age = q.age_seconds == null ? "?" : Math.round(q.age_seconds);
+    qe.textContent = `${t("age")}: ${age} ${t("sec")} (${q.stale ? t("stale") : t("fresh")})`;
+    qe.className = "chip " + (q.stale ? "bad" : "ok");
+    for(const [path, key] of TILES){
+      const v = get(o.telemetry, path); if(v === undefined) continue;
+      const tile = el("div", "tile"); tile.append(el("span", "", t(key)), el("b", "", String(v))); $("tele").append(tile);
+    }
+    if(!d.matched_rules.length) $("rules").append(el("div", "", t("none")));
+    for(const r of d.matched_rules){
+      const box = el("div", "rule"); box.style.borderInlineStartColor = `var(--${r.severity})`;
+      const head = el("div"); head.append(el("span", "sev " + r.severity, t(r.severity)), el("span", "", ` ${r.rule_id} - ${r.name}`));
+      box.append(head);
+      if(r.recommendation) box.append(el("small", "", r.recommendation));
+      if(r.explanation) box.append(el("small", "", r.explanation));
+      $("rules").append(box);
+    }
+    $("disc").textContent = d.disclaimer;
+  }
+  $("hist").replaceChildren(...o.history.map(h => {
+    const tr = el("tr"); const s = el("td", "sev " + h.overall_status, t(h.overall_status));
+    tr.append(el("td", "", new Date(h.created_at).toLocaleTimeString()), s, el("td", "", h.matched_rule_ids.join(", ") || "-"));
+    return tr;
+  }));
+}
+
+async function load(){
+  try{
+    const r = await fetch(url("/api/expert/overview" + (dev ? "?device_id=" + encodeURIComponent(dev) : "")), {cache:"no-store"});
+    if(!r.ok) throw new Error("HTTP " + r.status);
+    render(await r.json());
+  }catch(e){
+    setChip("c-api", t("offline"), false); $("c-mqtt").className = "chip";
+  }
+}
+
+async function sendDemo(key){
+  const payload = Object.assign({heart_rate_bpm:78, spo2_percent:98, co2_ppm:700, scrubber_status:"ACTIVE",
+    cabin_pressure_kpa:101.3, ppo2_kpa:20.5, radiation_level:0.2, co2_sensor_status:"ONLINE",
+    pressure_sensor_status:"ONLINE", radiation_sensor_status:"ONLINE", data_valid:true}, DEMOS[key]);
+  const msg = $("demomsg"); msg.style.display = "inline-block";
+  try{
+    const r = await fetch(url("/api/embedded/telemetry"), {method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({device_id:"web-demo", data:payload})});
+    if(!r.ok) throw new Error("HTTP " + r.status);
+    msg.textContent = t("sent"); dev = "web-demo"; await load();
+  }catch(e){ msg.textContent = t("fail") + " (" + e.message + ")"; }
+}
+
+$("dev").onchange = e => { dev = e.target.value; load(); };
+$("lang").onclick = () => { lang = lang === "ar" ? "en" : "ar"; try{ localStorage.setItem("orion_lang", lang); }catch(e){} applyLang(); load(); };
+applyLang(); load(); timer = setInterval(load, 2000);
+</script>
+</body>
+</html>

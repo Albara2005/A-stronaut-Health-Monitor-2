@@ -1,0 +1,30 @@
+{
+  "timestamp": "2026-11-15T08:00:00Z",
+  "crew": {
+    "heart_rate_bpm": 88,
+    "spo2_percent": 98
+  },
+  "eclss": {
+    "co2_ppm": 1250,
+    "scrubber_status": "INACTIVE",
+    "cabin_pressure_kpa": 101.3,
+    "ppo2_kpa": 20.5
+  },
+  "environment": {
+    "radiation_level": 0.4
+  },
+  "devices": {
+    "co2_sensor": {
+      "status": "ONLINE"
+    },
+    "pressure_sensor": {
+      "status": "ONLINE"
+    },
+    "radiation_sensor": {
+      "status": "ONLINE"
+    }
+  },
+  "data_quality": {
+    "valid": true
+  }
+}

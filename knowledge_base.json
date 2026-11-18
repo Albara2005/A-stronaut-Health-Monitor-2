@@ -1,0 +1,185 @@
+{
+  "version": "1.1.0",
+  "settings": {
+    "max_telemetry_age_seconds": 30
+  },
+  "rules": [
+    {
+      "rule_id": "ECLSS-CO2-001",
+      "name": "Elevated CO2",
+      "category": "ECLSS",
+      "priority": 20,
+      "severity": "WARNING",
+      "enabled": true,
+      "version": "1.1.0",
+      "all": [
+        {
+          "field": "eclss.co2_ppm",
+          "operator": ">",
+          "value": 1000
+        }
+      ],
+      "recommendation": "Review the CO2 removal subsystem and verify the reading.",
+      "explanation": "The CO2 value exceeded the configurable demonstration threshold."
+    },
+    {
+      "rule_id": "ECLSS-CO2-002",
+      "name": "Elevated CO2 with scrubber inactive",
+      "category": "ECLSS",
+      "priority": 1,
+      "severity": "CRITICAL",
+      "enabled": true,
+      "version": "1.1.0",
+      "all": [
+        {
+          "field": "eclss.co2_ppm",
+          "operator": ">",
+          "value": 1000
+        },
+        {
+          "field": "eclss.scrubber_status",
+          "operator": "==",
+          "value": "INACTIVE"
+        }
+      ],
+      "recommendation": "Inspect the CO2 removal subsystem and independently verify scrubber status.",
+      "explanation": "Both elevated CO2 and inactive scrubber conditions were detected."
+    },
+    {
+      "rule_id": "ECLSS-PRESSURE-001",
+      "name": "Low cabin pressure",
+      "category": "ECLSS",
+      "priority": 1,
+      "severity": "CRITICAL",
+      "enabled": true,
+      "version": "1.1.0",
+      "all": [
+        {
+          "field": "eclss.cabin_pressure_kpa",
+          "operator": "<",
+          "value": 90
+        }
+      ],
+      "recommendation": "Verify pressure sensor validity and inspect the pressure-control subsystem.",
+      "explanation": "Cabin pressure is below the illustrative configured threshold."
+    },
+    {
+      "rule_id": "ECLSS-O2-001",
+      "name": "Low oxygen partial pressure",
+      "category": "ECLSS",
+      "priority": 2,
+      "severity": "HIGH",
+      "enabled": true,
+      "version": "1.1.0",
+      "all": [
+        {
+          "field": "eclss.ppo2_kpa",
+          "operator": "<",
+          "value": 18
+        }
+      ],
+      "recommendation": "Verify oxygen measurements and review life-support subsystem status.",
+      "explanation": "Oxygen partial pressure is below the illustrative configured threshold."
+    },
+    {
+      "rule_id": "RAD-001",
+      "name": "Elevated radiation indicator",
+      "category": "RADIATION",
+      "priority": 3,
+      "severity": "WARNING",
+      "enabled": true,
+      "version": "1.1.0",
+      "all": [
+        {
+          "field": "environment.radiation_level",
+          "operator": ">",
+          "value": 1.0
+        }
+      ],
+      "recommendation": "Verify the radiation sensor and review the mission's approved radiation procedures.",
+      "explanation": "Radiation indicator exceeded the illustrative demonstration threshold."
+    },
+    {
+      "rule_id": "SENSOR-001",
+      "name": "Sensor offline",
+      "category": "SENSOR_HEALTH",
+      "priority": 2,
+      "severity": "WARNING",
+      "enabled": true,
+      "version": "1.1.0",
+      "any": [
+        {
+          "field": "devices.co2_sensor.status",
+          "operator": "==",
+          "value": "OFFLINE"
+        },
+        {
+          "field": "devices.pressure_sensor.status",
+          "operator": "==",
+          "value": "OFFLINE"
+        },
+        {
+          "field": "devices.radiation_sensor.status",
+          "operator": "==",
+          "value": "OFFLINE"
+        }
+      ],
+      "recommendation": "Check device power, communication link, and sensor diagnostics.",
+      "explanation": "At least one monitored sensor reports OFFLINE."
+    },
+    {
+      "rule_id": "CREW-HR-001",
+      "name": "Elevated crew heart-rate indicator",
+      "category": "BIOMEDICAL",
+      "priority": 10,
+      "severity": "WARNING",
+      "enabled": true,
+      "version": "1.1.0",
+      "all": [
+        {
+          "field": "crew.heart_rate_bpm",
+          "operator": ">",
+          "value": 120
+        }
+      ],
+      "recommendation": "Verify the measurement and refer the observation to qualified medical personnel.",
+      "explanation": "Heart-rate indicator exceeded the illustrative demonstration threshold; this is not a diagnosis."
+    },
+    {
+      "rule_id": "CREW-SPO2-001",
+      "name": "Low SpO2 indicator",
+      "category": "BIOMEDICAL",
+      "priority": 2,
+      "severity": "HIGH",
+      "enabled": true,
+      "version": "1.1.0",
+      "all": [
+        {
+          "field": "crew.spo2_percent",
+          "operator": "<",
+          "value": 92
+        }
+      ],
+      "recommendation": "Verify sensor placement and measurement; seek qualified medical review.",
+      "explanation": "SpO2 indicator is below the illustrative demonstration threshold; this is not a diagnosis."
+    },
+    {
+      "rule_id": "DATA-001",
+      "name": "Telemetry quality flag",
+      "category": "DATA_QUALITY",
+      "priority": 1,
+      "severity": "WARNING",
+      "enabled": true,
+      "version": "1.1.0",
+      "all": [
+        {
+          "field": "data_quality.valid",
+          "operator": "==",
+          "value": false
+        }
+      ],
+      "recommendation": "Do not rely on the affected telemetry until data quality is restored.",
+      "explanation": "The telemetry producer marked the current data set invalid."
+    }
+  ]
+}
